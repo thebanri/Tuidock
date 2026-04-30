@@ -22,20 +22,25 @@
 
 ## 🚀 Installation
 
-### ⚡ Quick Install (curl)
+### ⚡ Quick Install
 
-You can quickly install Tuidock by downloading the latest binary:
+Tuidock is available as a pre-compiled binary for Linux, macOS, and Windows.
 
+1. **Visit the [Releases](https://github.com/thebanri/tuidock/releases) page.**
+2. **Download the archive** for your platform (e.g., `tuidock_0.1.0_Linux_x86_64.tar.gz` or `tuidock_0.1.0_Windows_x86_64.zip`).
+3. **Extract the binary** and move it to a directory in your system's PATH.
+
+#### Using curl (Linux & macOS)
 ```bash
-# For Linux AMD64
-curl -L https://github.com/thebanri/tuidock/releases/latest/download/tuidock-linux-amd64 -o tuidock
+# Example for Linux x86_64 (replace 0.1.0 with the latest version)
+curl -L https://github.com/thebanri/tuidock/releases/download/v0.1.0/tuidock_0.1.0_Linux_x86_64.tar.gz | tar xz
 chmod +x tuidock
 sudo mv tuidock /usr/local/bin/
 ```
 
 ### 🛠️ Manual Installation
 
-If you have Go installed (version 1.25 or higher), you can build Tuidock from source:
+If you have Go installed, you can build Tuidock from source:
 
 1. **Clone the repository:**
    ```bash
@@ -49,9 +54,8 @@ If you have Go installed (version 1.25 or higher), you can build Tuidock from so
    ```
 
 3. **Move to your PATH:**
-   ```bash
-   sudo mv tuidock /usr/local/bin/
-   ```
+   - **Linux/macOS:** `sudo mv tuidock /usr/local/bin/`
+   - **Windows:** Move `tuidock.exe` to a folder in your `%PATH%`.
 
 ## 📖 Usage
 
@@ -74,8 +78,7 @@ tuidock
 ## ⚙️ Configuration
 
 Tuidock saves your SSH host configurations in:
-- `~/.tuidock.json` (Linux/macOS)
-- `%USERPROFILE%/tuidock-config.json` (Windows)
+- `~/.tuidock.json` (Linux/macOS/Windows)
 
 ## 🤝 Contributing
 
