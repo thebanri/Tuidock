@@ -32,6 +32,14 @@ curl -sSL https://raw.githubusercontent.com/thebanri/Tuidock/main/scripts/instal
 
 Alternatively, you can manually download the binary for your platform from the [Releases](https://github.com/thebanri/Tuidock/releases) page.
 
+### 🗑️ Uninstallation
+
+If you wish to remove Tuidock, you can use the following command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/thebanri/Tuidock/main/scripts/uninstall.sh | bash
+```
+
 ### 🛠️ Manual Installation
 
 If you have Go installed, you can build Tuidock from source:
