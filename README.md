@@ -24,19 +24,13 @@
 
 ### ⚡ Quick Install
 
-Tuidock is available as a pre-compiled binary for Linux, macOS, and Windows.
+The easiest way to install Tuidock on Linux, macOS, or Windows (via WSL/Git Bash) is using the following command:
 
-1. **Visit the [Releases](https://github.com/thebanri/tuidock/releases) page.**
-2. **Download the archive** for your platform (e.g., `tuidock_0.1.0_Linux_x86_64.tar.gz` or `tuidock_0.1.0_Windows_x86_64.zip`).
-3. **Extract the binary** and move it to a directory in your system's PATH.
-
-#### Using curl (Linux & macOS)
 ```bash
-# Example for Linux x86_64 (replace 0.1.0 with the latest version)
-curl -L https://github.com/thebanri/tuidock/releases/download/v0.1.0/tuidock_0.1.0_Linux_x86_64.tar.gz | tar xz
-chmod +x tuidock
-sudo mv tuidock /usr/local/bin/
+curl -sSL https://raw.githubusercontent.com/thebanri/Tuidock/main/scripts/install.sh | bash
 ```
+
+Alternatively, you can manually download the binary for your platform from the [Releases](https://github.com/thebanri/Tuidock/releases) page.
 
 ### 🛠️ Manual Installation
 
