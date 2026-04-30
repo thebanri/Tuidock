@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"docker-tui/docker"
-	"docker-tui/ui"
+	"Tuidock/docker"
+	"Tuidock/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

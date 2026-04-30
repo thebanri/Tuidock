@@ -1,4 +1,4 @@
-module docker-tui
+module Tuidock
 
 go 1.25.0
 

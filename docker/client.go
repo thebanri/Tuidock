@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"docker-tui/models"
+	"Tuidock/models"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -137,16 +137,16 @@ func (s *LocalDockerService) GetContainers() ([]models.ContainerData, error) {
 			var ports []string
 			for _, p := range c.Ports {
 				if p.PublicPort != 0 {
-					ports = append(ports, fmt.Sprintf("%d:%d", p.PublicPort, p.PrivatePort))
-				} else {
+					if p.PublicPort == p.PrivatePort {
+						ports = append(ports, fmt.Sprintf("%d", p.PublicPort))
+					} else {
+						ports = append(ports, fmt.Sprintf("%d:%d", p.PublicPort, p.PrivatePort))
+					}
+				} else if p.PrivatePort != 0 {
 					ports = append(ports, fmt.Sprintf("%d", p.PrivatePort))
 				}
 			}
-			if len(ports) > 3 {
-				data.Ports = strings.Join(ports[:3], ", ") + "..."
-			} else {
-				data.Ports = strings.Join(ports, ", ")
-			}
+			data.Ports = strings.Join(ports, ", ")
 
 			// Fetch stats only if running
 			if c.State == "running" {
@@ -259,7 +259,7 @@ func (s *LocalDockerService) getStats(ctx context.Context, id string) (parsedSta
 		rx += n.RxBytes
 		tx += n.TxBytes
 	}
-	res.NetIO = fmt.Sprintf("%s / %s", formatBytes(rx), formatBytes(tx))
+	res.NetIO = fmt.Sprintf("↓%s ↑%s", formatBytes(rx), formatBytes(tx))
 
 	// Calculate Block IO
 	var read, write uint64
@@ -270,7 +270,7 @@ func (s *LocalDockerService) getStats(ctx context.Context, id string) (parsedSta
 			write += io.Value
 		}
 	}
-	res.BlockIO = fmt.Sprintf("%s / %s", formatBytes(read), formatBytes(write))
+	res.BlockIO = fmt.Sprintf("↓%s ↑%s", formatBytes(read), formatBytes(write))
 
 	res.PIDs = stats.PidsStats.Current
 
@@ -280,12 +280,17 @@ func (s *LocalDockerService) getStats(ctx context.Context, id string) (parsedSta
 func formatBytes(b uint64) string {
 	const unit = 1024
 	if b < unit {
-		return fmt.Sprintf("%d B", b)
+		return fmt.Sprintf("%dB", b)
 	}
 	div, exp := int64(unit), 0
 	for n := b / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
 	}
-	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
+	val := float64(b) / float64(div)
+	str := fmt.Sprintf("%.1f", val)
+	if strings.HasSuffix(str, ".0") {
+		str = str[:len(str)-2]
+	}
+	return fmt.Sprintf("%s%c", str, "KMGTPE"[exp])
 }

@@ -21,9 +21,9 @@ type Config struct {
 func getConfigPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "docker-tui-config.json"
+		return "tuidock-config.json"
 	}
-	return filepath.Join(home, ".docker-tui.json")
+	return filepath.Join(home, ".tuidock.json")
 }
 
 func LoadConfig() Config {

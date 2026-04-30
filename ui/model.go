@@ -3,11 +3,13 @@ package ui
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
-	"docker-tui/docker"
-	"docker-tui/models"
-	"docker-tui/ssh"
+	"Tuidock/docker"
+	"Tuidock/models"
+	"Tuidock/ssh"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,6 +22,15 @@ const (
 	ViewList ViewMode = iota
 	ViewSSHForm
 	ViewSSHSaved
+)
+
+type SortMode int
+
+const (
+	SortName SortMode = iota
+	SortState
+	SortCPU
+	SortRAM
 )
 
 type tickMsg time.Time
@@ -75,6 +86,8 @@ type AppModel struct {
 	height        int
 	cursor        int
 	savedCursor   int
+	sortMode      SortMode
+	sortDesc      bool
 }
 
 func NewAppModel(ds docker.Service) *AppModel {
@@ -84,8 +97,9 @@ func NewAppModel(ds docker.Service) *AppModel {
 			ConnectionType: models.LocalConnection,
 			ServerName:     "localhost",
 		},
-		mode:    ViewList,
-		sshForm: newSSHForm(),
+		mode:     ViewList,
+		sshForm:  newSSHForm(),
+		sortMode: SortName,
 	}
 }
 
@@ -116,6 +130,62 @@ func (m *AppModel) fetchContainersCmd() tea.Cmd {
 	}
 }
 
+func (m *AppModel) applySortAndRestoreCursor(containers []models.ContainerData) {
+	// Record currently selected container's Name
+	var selectedName string
+	if m.cursor >= 0 && m.cursor < len(m.state.Containers) {
+		selectedName = m.state.Containers[m.cursor].Name
+	}
+
+	sort.Slice(containers, func(i, j int) bool {
+		c1, c2 := containers[i], containers[j]
+		if m.sortDesc {
+			c1, c2 = c2, c1 // invert logic
+		}
+
+		switch m.sortMode {
+		case SortState:
+			if c1.State == c2.State {
+				return c1.Name < c2.Name
+			}
+			return c1.State < c2.State
+		case SortCPU:
+			if c1.CPUPercent == c2.CPUPercent {
+				return c1.Name < c2.Name
+			}
+			return c1.CPUPercent < c2.CPUPercent
+		case SortRAM:
+			if c1.MemPercent == c2.MemPercent {
+				return c1.Name < c2.Name
+			}
+			return c1.MemPercent < c2.MemPercent
+		case SortName:
+			fallthrough
+		default:
+			return c1.Name < c2.Name
+		}
+	})
+
+	m.state.Containers = containers
+
+	// Restore cursor
+	if selectedName != "" {
+		for i, c := range m.state.Containers {
+			if c.Name == selectedName {
+				m.cursor = i
+				break
+			}
+		}
+	} else {
+		if m.cursor >= len(m.state.Containers) {
+			m.cursor = len(m.state.Containers) - 1
+		}
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
+	}
+}
+
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -141,8 +211,26 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				existing.CPUPercent += c.CPUPercent
 				existing.MemPercent += c.MemPercent
 				existing.PIDs += c.PIDs
-				// Aggregate block/net IO strings is complex, just mark them as mixed or ignore
-				existing.Ports = "..."
+
+				// Combine ports instead of hiding them
+				if c.Ports != "" {
+					portMap := make(map[string]bool)
+					if existing.Ports != "" && existing.Ports != "..." {
+						for _, p := range strings.Split(existing.Ports, ", ") {
+							portMap[p] = true
+						}
+					}
+					for _, p := range strings.Split(c.Ports, ", ") {
+						portMap[p] = true
+					}
+					var merged []string
+					for p := range portMap {
+						merged = append(merged, p)
+					}
+					sort.Strings(merged)
+					existing.Ports = strings.Join(merged, ", ")
+				}
+
 				if existing.State != c.State {
 					existing.State = "mixed"
 				}
@@ -162,14 +250,8 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			aggregated = append(aggregated, *grouped[proj])
 		}
 
-		m.state.Containers = aggregated
+		m.applySortAndRestoreCursor(aggregated)
 		m.state.Error = nil
-		if m.cursor >= len(m.state.Containers) {
-			m.cursor = len(m.state.Containers) - 1
-		}
-		if m.cursor < 0 {
-			m.cursor = 0
-		}
 
 	case errMsg:
 		m.state.Error = msg.err
@@ -192,6 +274,12 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.cursor < len(m.state.Containers)-1 {
 					m.cursor++
 				}
+			case "o":
+				m.sortMode = (m.sortMode + 1) % 4
+				m.applySortAndRestoreCursor(m.state.Containers)
+			case "i":
+				m.sortDesc = !m.sortDesc
+				m.applySortAndRestoreCursor(m.state.Containers)
 			case "a":
 				if len(m.state.Containers) > 0 {
 					c := m.state.Containers[m.cursor]
@@ -344,7 +432,21 @@ func (m *AppModel) View() string {
 	}
 
 	// Header
-	headerText := fmt.Sprintf(" 🐳 Docker TUI | %s: %s ", m.state.ConnectionType, m.state.ServerName)
+	sortNameStr := "Name"
+	switch m.sortMode {
+	case SortState:
+		sortNameStr = "State"
+	case SortCPU:
+		sortNameStr = "CPU"
+	case SortRAM:
+		sortNameStr = "RAM"
+	}
+	sortDirStr := "Asc"
+	if m.sortDesc {
+		sortDirStr = "Desc"
+	}
+
+	headerText := fmt.Sprintf(" 🐳 Docker TUI | %s: %s | Sort: %s (%s) ", m.state.ConnectionType, m.state.ServerName, sortNameStr, sortDirStr)
 	header := StyleHeader.Render(headerText)
 
 	// Error banner if any
@@ -365,7 +467,7 @@ func (m *AppModel) View() string {
 	// Footer
 	footer := ""
 	if m.mode == ViewList {
-		footer = StyleHelp.Render(" [↑/↓] Navigate  [a] Start  [x] Stop  [r] Restart  [s] SSH  [l] Local  [q] Quit ")
+		footer = StyleHelp.Render(" [↑/↓] Navigate  [o] Sort  [i] Invert  [a] Start  [x] Stop  [r] Restart  [s] SSH  [l] Local  [q] Quit ")
 	} else if m.mode == ViewSSHForm {
 		footer = StyleHelp.Render(" [Tab] Next Field  [Enter] Connect  [Esc] Cancel ")
 	} else if m.mode == ViewSSHSaved {
@@ -391,18 +493,18 @@ func (m *AppModel) viewList() string {
 	// Calculate widths
 	wName := 25
 	wState := 10
-	wCPU := 20
-	wMem := 20
-	wDisk := 15
+	wCPU := 22
+	wMem := 22
+	wDisk := 18
 	wPorts := 20
 
 	headerRow := lipgloss.JoinHorizontal(lipgloss.Left,
-		fmt.Sprintf("%-*s", wName, "NAME"),
-		fmt.Sprintf("%-*s", wState, "STATE"),
-		fmt.Sprintf("%-*s", wCPU, "CPU %"),
-		fmt.Sprintf("%-*s", wMem, "RAM %"),
-		fmt.Sprintf("%-*s", wDisk, "DISK I/O"),
-		fmt.Sprintf("%-*s", wPorts, "PORTS"),
+		lipgloss.NewStyle().Width(wName).PaddingRight(2).Render("NAME"),
+		lipgloss.NewStyle().Width(wState).PaddingRight(2).Render("STATE"),
+		lipgloss.NewStyle().Width(wCPU).PaddingRight(2).Render("CPU %"),
+		lipgloss.NewStyle().Width(wMem).PaddingRight(2).Render("RAM %"),
+		lipgloss.NewStyle().Width(wDisk).PaddingRight(2).Render("DISK I/O"),
+		lipgloss.NewStyle().Width(wPorts).Render("PORTS"),
 	)
 	headerRow = lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).BorderBottom(true).BorderStyle(lipgloss.NormalBorder()).Render(headerRow)
 
@@ -425,13 +527,29 @@ func (m *AppModel) viewList() string {
 		cpuStr := fmt.Sprintf("%5.1f%% ", c.CPUPercent) + DrawProgressBar(c.CPUPercent, 10)
 		memStr := fmt.Sprintf("%5.1f%% ", c.MemPercent) + DrawProgressBar(c.MemPercent, 10)
 
+		diskIO := c.BlockIO
+		runesDisk := []rune(diskIO)
+		if len(runesDisk) > wDisk-1 {
+			if len(runesDisk) > wDisk-3 {
+				diskIO = string(runesDisk[:wDisk-3]) + ".."
+			}
+		}
+
+		ports := c.Ports
+		runesPorts := []rune(ports)
+		if len(runesPorts) > wPorts-1 {
+			if len(runesPorts) > wPorts-3 {
+				ports = string(runesPorts[:wPorts-3]) + ".."
+			}
+		}
+
 		rowContent := lipgloss.JoinHorizontal(lipgloss.Left,
-			fmt.Sprintf("%-*s", wName, name),
-			stateStyle.Render(fmt.Sprintf("%-*s", wState, c.State)),
-			fmt.Sprintf("%-*s", wCPU, cpuStr),
-			fmt.Sprintf("%-*s", wMem, memStr),
-			fmt.Sprintf("%-*s", wDisk, c.BlockIO),
-			fmt.Sprintf("%-*s", wPorts, c.Ports),
+			lipgloss.NewStyle().Width(wName).PaddingRight(2).Render(name),
+			stateStyle.Copy().Width(wState).PaddingRight(2).Render(c.State),
+			lipgloss.NewStyle().Width(wCPU).PaddingRight(2).Render(cpuStr),
+			lipgloss.NewStyle().Width(wMem).PaddingRight(2).Render(memStr),
+			lipgloss.NewStyle().Width(wDisk).PaddingRight(2).Render(diskIO),
+			lipgloss.NewStyle().Width(wPorts).Render(ports),
 		)
 
 		if i == m.cursor {

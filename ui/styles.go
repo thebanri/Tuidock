@@ -70,10 +70,10 @@ func DrawProgressBar(percent float64, width int) string {
 	}
 
 	activeStyle := lipgloss.NewStyle().Foreground(activeColor)
-	inactiveStyle := lipgloss.NewStyle().Foreground(ColorBgPanel)
+	inactiveStyle := lipgloss.NewStyle().Background(ColorBgPanel).Foreground(ColorBgPanel)
 
 	blockChar := "█"
-	emptyChar := "─"
+	emptyChar := " "
 
 	activeStr := ""
 	for i := 0; i < activeChars; i++ {

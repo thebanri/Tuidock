@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"docker-tui/docker"
+	"Tuidock/docker"
 
 	dockerclient "github.com/docker/docker/client"
 	"golang.org/x/crypto/ssh"
