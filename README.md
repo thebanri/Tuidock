@@ -1,5 +1,9 @@
 # 🚢 Tuidock
 
+<p align="center">
+  <img src="assets/logo.jpeg" width="400" alt="Tuidock Logo">
+</p>
+
 **Tuidock** is a powerful and intuitive Terminal User Interface (TUI) for managing your Docker containers, images, and networks with ease. Built with Go and the Bubble Tea framework, it provides a seamless experience for developers who love the terminal.
 
 <p align="center">
